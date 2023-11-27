@@ -32,6 +32,7 @@ async function run() {
     const apartmentCollections = client.db("EminentEstates").collection("apartment");
     const agreementCollections = client.db("EminentEstates").collection("agreement");
     const userInfoCollections = client.db("EminentEstates").collection("users");
+    const announcementCollections = client.db("EminentEstates").collection("announcement");
 
     // middleware
     const verifyToken = (req, res, next) => {
@@ -129,6 +130,27 @@ async function run() {
       }
     })
 
+    // get all the agreementRequest
+    app.get('/getAgreement',verifyToken, verifyAdmin, async(req,res)=>{
+      try{
+        const result = await agreementCollections.find().toArray();
+        res.send(result);
+      }catch (error) {
+        console.log(error)
+      }
+      
+    })
+    // get all the announcement for member
+    app.get('/getAnnouncement', verifyToken, verifyMember, async(req, res)=>{
+      try{
+        const result = await announcementCollections.find().toArray();
+        res.send(result);
+      }catch (error) {
+        console.log(error)
+      }
+      
+    })
+
     // jwt token creation
 
     app.post('/jwt', async (req, res) => {
@@ -164,6 +186,18 @@ async function run() {
         res.send(result);
       }
       catch (error) {
+        console.log(error)
+      }
+    })
+
+    // post announcement
+    app.post('/announcement', verifyToken, verifyAdmin, async(req, res)=>{
+      try{
+        const announcement = req.body;
+        const result = await announcementCollections.insertOne(announcement);
+        res.send(result);
+
+      }catch (error) {
         console.log(error)
       }
     })
