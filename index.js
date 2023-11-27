@@ -48,8 +48,35 @@ async function run() {
       })
 
     }
-    // verify admin
-    app.get('/user/admin/:email', async (req, res) => {
+    // verify admin middleware
+
+    const verifyAdmin = async(req, res, next)=>{
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userInfoCollections.findOne(query);
+      const isAdmin = user?.role === 'admin';
+
+      if(!isAdmin){
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next()
+    }
+    // verify member middleware
+
+    const verifyMember = async(req, res, next)=>{
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userInfoCollections.findOne(query);
+      const isMember = user?.role === 'member';
+
+      if(!isMember){
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next()
+    }
+
+    // checking if it is admin
+    app.get('/user/admin/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' })
@@ -62,8 +89,9 @@ async function run() {
       }
       res.send({admin})
     })
-    // verify member
-    app.get('/user/member/:email', async (req, res) => {
+
+    //checking if it is member
+    app.get('/user/member/:email',verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' })
@@ -84,6 +112,17 @@ async function run() {
       try {
         const result = await apartmentCollections.find().toArray();
         res.send(result);
+      }
+      catch (error) {
+        console.log(error)
+      }
+    })
+    // get all the users info
+    app.get('/users', verifyToken, verifyAdmin, async(req,res)=>{
+      try{
+        const result = await userInfoCollections.find().toArray();
+        res.send(result);
+
       }
       catch (error) {
         console.log(error)
@@ -117,7 +156,7 @@ async function run() {
 
     })
     // post the agreement request
-    app.post('/agreement', async (req, res) => {
+    app.post('/agreement',verifyToken, async (req, res) => {
 
       try {
         const agreement = req.body;
