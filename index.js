@@ -4,7 +4,7 @@ require("dotenv").config();
 const app = express();
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
 // middleware
@@ -33,6 +33,8 @@ async function run() {
     const agreementCollections = client.db("EminentEstates").collection("agreement");
     const userInfoCollections = client.db("EminentEstates").collection("users");
     const announcementCollections = client.db("EminentEstates").collection("announcement");
+    const bookedCollections = client.db("EminentEstates").collection("booked");
+    const couponCollections = client.db("EminentEstates").collection("coupon");
 
     // middleware
     const verifyToken = (req, res, next) => {
@@ -51,26 +53,26 @@ async function run() {
     }
     // verify admin middleware
 
-    const verifyAdmin = async(req, res, next)=>{
+    const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await userInfoCollections.findOne(query);
       const isAdmin = user?.role === 'admin';
 
-      if(!isAdmin){
+      if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden access' })
       }
       next()
     }
     // verify member middleware
 
-    const verifyMember = async(req, res, next)=>{
+    const verifyMember = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await userInfoCollections.findOne(query);
       const isMember = user?.role === 'member';
 
-      if(!isMember){
+      if (!isMember) {
         return res.status(403).send({ message: 'forbidden access' })
       }
       next()
@@ -86,13 +88,13 @@ async function run() {
       const user = await userInfoCollections.findOne(query);
       let admin = false;
       if (user) {
-          admin = user?.role === 'admin';
+        admin = user?.role === 'admin';
       }
-      res.send({admin})
+      res.send({ admin })
     })
 
     //checking if it is member
-    app.get('/user/member/:email',verifyToken, async (req, res) => {
+    app.get('/user/member/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' })
@@ -103,7 +105,7 @@ async function run() {
       if (user) {
         member = user?.role === 'member';
       }
-      res.send({member})
+      res.send({ member })
     })
 
 
@@ -119,8 +121,8 @@ async function run() {
       }
     })
     // get all the users info
-    app.get('/users', verifyToken, verifyAdmin, async(req,res)=>{
-      try{
+    app.get('/users', verifyToken, async (req, res) => {
+      try {
         const result = await userInfoCollections.find().toArray();
         res.send(result);
 
@@ -131,24 +133,58 @@ async function run() {
     })
 
     // get all the agreementRequest
-    app.get('/getAgreement',verifyToken, verifyAdmin, async(req,res)=>{
-      try{
+    app.get('/getAgreement', verifyToken, verifyAdmin, async (req, res) => {
+      try {
         const result = await agreementCollections.find().toArray();
         res.send(result);
-      }catch (error) {
+      } catch (error) {
         console.log(error)
       }
-      
+
+    })
+    // get all the coupon
+    app.get('/allCoupon', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const result = await couponCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error)
+      }
+
+    })
+    // get Single Agreement
+    app.get('/getAgreement/:email', verifyToken, async (req, res) => {
+      try {
+        const query = req.params.id;
+        const result = await agreementCollections.findOne(query);
+        res.send(result);
+      } catch (error) {
+        console.log(error)
+      }
+
+    })
+
+
+
+    // get all the booked information
+    app.get('/getBooked', verifyToken, async (req, res) => {
+      try {
+        const result = await bookedCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error)
+      }
+
     })
     // get all the announcement for member
-    app.get('/getAnnouncement', verifyToken, verifyMember, async(req, res)=>{
-      try{
+    app.get('/getAnnouncement', verifyToken, verifyMember, async (req, res) => {
+      try {
         const result = await announcementCollections.find().toArray();
         res.send(result);
-      }catch (error) {
+      } catch (error) {
         console.log(error)
       }
-      
+
     })
 
     // jwt token creation
@@ -161,7 +197,7 @@ async function run() {
 
     // post the user data
 
-    app.post('/users', async (req, res) => {
+    app.post('/users', async(req, res) => {
       try {
         const userInfo = req.body;
         const query = { email: userInfo.email };
@@ -178,7 +214,7 @@ async function run() {
 
     })
     // post the agreement request
-    app.post('/agreement',verifyToken, async (req, res) => {
+    app.post('/agreement', verifyToken, async (req, res) => {
 
       try {
         const agreement = req.body;
@@ -189,19 +225,86 @@ async function run() {
         console.log(error)
       }
     })
+    // post booked info
+    app.post('/booked', verifyToken, async (req, res) => {
 
-    // post announcement
-    app.post('/announcement', verifyToken, verifyAdmin, async(req, res)=>{
-      try{
-        const announcement = req.body;
-        const result = await announcementCollections.insertOne(announcement);
+      try {
+        const booked = req.body;
+        const result = await bookedCollections.insertOne(booked)
         res.send(result);
-
-      }catch (error) {
+      }
+      catch (error) {
         console.log(error)
       }
     })
 
+
+    // post announcement
+    app.post('/announcement', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const announcement = req.body;
+        const result = await announcementCollections.insertOne(announcement);
+        res.send(result);
+
+      } catch (error) {
+        console.log(error)
+      }
+    })
+
+    // post Coupon
+    app.post('/postCoupon', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const coupon = req.body;
+        const result = await couponCollections.insertOne(coupon);
+        res.send(result);
+
+      } catch (error) {
+        console.log(error)
+      }
+    })
+    // update agreement
+    app.patch('/updateAgreement/:id', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const updateAgreement = req.body;
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            status: updateAgreement.status,
+            userRole: updateAgreement.userRole
+
+          }
+        }
+
+        const result = await agreementCollections.updateOne(filter, updateDoc)
+        res.send(result);
+
+
+      } catch (error) {
+        console.log(error)
+      }
+    })
+
+    // update User
+    app.patch('/updateUser/:id', verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const updateUser = req.body;
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            role: updateUser.role,
+          }
+        }
+
+        const result = await userInfoCollections.updateOne(filter, updateDoc)
+        res.send(result);
+
+
+      } catch (error) {
+        console.log(error)
+      }
+    })
 
 
     await client.db("admin").command({ ping: 1 });
