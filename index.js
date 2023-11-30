@@ -3,6 +3,7 @@ const cors = require('cors');
 require("dotenv").config();
 const app = express();
 const jwt = require("jsonwebtoken");
+const stripe = require('stripe')(process.env.STRIPE_KEY)
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -34,6 +35,7 @@ async function run() {
     const userInfoCollections = client.db("EminentEstates").collection("users");
     const announcementCollections = client.db("EminentEstates").collection("announcement");
     const bookedCollections = client.db("EminentEstates").collection("booked");
+    const paymentCollections = client.db("EminentEstates").collection("payment");
     const couponCollections = client.db("EminentEstates").collection("coupon");
 
     // middleware
@@ -143,7 +145,7 @@ async function run() {
 
     })
     // get all the coupon
-    app.get('/allCoupon', verifyToken, verifyAdmin, async (req, res) => {
+    app.get('/allCoupon', async (req, res) => {
       try {
         const result = await couponCollections.find().toArray();
         res.send(result);
@@ -153,15 +155,28 @@ async function run() {
 
     })
     // get Single Agreement
-    app.get('/getAgreement/:email', verifyToken, async (req, res) => {
+    app.get('/getAgreement/:email', verifyToken, verifyMember, async (req, res) => {
       try {
-        const query = req.params.id;
-        const result = await agreementCollections.findOne(query);
+        const email = req.params.email;
+        const query = { UserEmail : email}
+        const result = await agreementCollections.find(query).toArray();
         res.send(result);
       } catch (error) {
         console.log(error)
       }
 
+    })
+
+    // get Payment History
+    app.get('/paymentHistory/:email', verifyToken, verifyMember, async(req,res)=>{
+      try {
+        const email = req.params.email;
+        const query = { email: email}
+        const result = await paymentCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error)
+      }
     })
 
 
@@ -302,6 +317,47 @@ async function run() {
 
 
       } catch (error) {
+        console.log(error)
+      }
+    })
+
+    // create Payment Intent
+    app.post('/create-payment-intent', async(req, res)=>{
+     try{
+      const {netPrice} = req.body;
+      const amount = parseInt(netPrice*100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency : 'usd',
+        payment_method_types: [
+          "card"
+        ],
+      })
+      
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+     } catch (error) {
+      console.log(error)
+    }
+    })
+
+    // save Payment info in database
+
+    app.post('/savePayments', verifyToken, async(req, res)=>{
+      try{
+        const payment = req.body;
+        const paymentResult = await paymentCollections.insertOne(payment);
+       const query = {
+        _id:{
+          $in: payment.agreementIds.map(item=>new ObjectId(item))
+        }
+       }
+       const deleteResult = await agreementCollections.deleteMany(query);
+        res.send({paymentResult,deleteResult});
+
+      }
+      catch (error) {
         console.log(error)
       }
     })
