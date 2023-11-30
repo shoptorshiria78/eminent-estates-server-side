@@ -115,13 +115,22 @@ async function run() {
     // get the all apartments info
     app.get('/apartments', async (req, res) => {
       try {
-        const result = await apartmentCollections.find().toArray();
+        const page = parseInt(req.query.page);
+        const size = parseInt(req.query.size)
+        const result = await apartmentCollections.find().skip(page*size).limit(size).toArray();
         res.send(result);
       }
       catch (error) {
         console.log(error)
       }
     })
+
+    // get apartment count
+    app.get('/apartmentCount', async(req, res)=>{
+      const count = await apartmentCollections.estimatedDocumentCount();
+      res.send({count})
+    })
+
     // get all the users info
     app.get('/users', verifyToken, async (req, res) => {
       try {
