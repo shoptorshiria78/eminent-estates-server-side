@@ -180,13 +180,33 @@ async function run() {
     app.get('/paymentHistory/:email', verifyToken, verifyMember, async(req,res)=>{
       try {
         const email = req.params.email;
-        const query = { email: email}
-        const result = await paymentCollections.find().toArray();
+        const filter = req.query;
+        const query = { 
+          email: email
+        }
+        const result = await paymentCollections.find(query).toArray();
         res.send(result);
       } catch (error) {
         console.log(error)
       }
     })
+    // get searched payment history
+    app.get('/paymentHistory/:email', verifyToken, verifyMember, async(req,res)=>{
+      try {
+        const email = req.params.email;
+        const filter = req.query.search;
+        const query = { 
+          email: email
+        }
+        const options = {
+          sort :{month:filter}
+        }
+        const result = await paymentCollections.find(query, options).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error)
+      }
+    } )
 
 
 
@@ -201,7 +221,7 @@ async function run() {
 
     })
     // get all the announcement for member
-    app.get('/getAnnouncement', verifyToken, verifyMember, async (req, res) => {
+    app.get('/getAnnouncement', verifyToken,  async (req, res) => {
       try {
         const result = await announcementCollections.find().toArray();
         res.send(result);
